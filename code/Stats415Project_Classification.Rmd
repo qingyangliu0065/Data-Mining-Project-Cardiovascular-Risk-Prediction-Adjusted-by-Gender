@@ -22,8 +22,7 @@ library(FNN)
 ```
 
 ```{r}
-regress_data <- read.csv("regress_data.csv")
-class_data <- read.csv("class_data.csv")
+# In the data processing part, you should replace all the file pathname with the pathname of files in this Repo. 
 ```
 
 ```{r}
