@@ -1,0 +1,362 @@
+---
+title: "kaggle_prediction"
+author: "Qingyang Liu"
+date: "3/24/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+train <- read_csv("/Users/jennifer.l/Desktop/STATS415/final_project/kaggle_train.csv")
+head(train)
+```
+```{r}
+test <- read.csv("/Users/jennifer.l/Desktop/STATS415/final_project/kaggle_test.csv")
+test = test[ ,-1]
+head(test)
+```
+```{r}
+# scale the training & test set except for the response value y
+sd_train <- sqrt(diag(var(train[ ,-2])))
+mean_train <- colMeans(train[ ,-2])
+train_scaled = scale(train[ ,-2], center = mean_train, scale = sd_train)
+train_scaled = data.frame(train[ ,2], train_scaled)
+train_scaled = train_scaled[ ,-2]
+test_scaled = scale(test, center = mean_train, scale = sd_train)
+test_scaled = data.frame(test_scaled[ ,-1])
+```
+
+```{r}
+head(train_scaled)
+head(test_scaled)
+```
+
+# variable selection and model fitting using LASSO
+
+```{r}
+library(glmnet)
+X_train = model.matrix(y ~ ., train_scaled)[,-1]
+X_test = as.matrix(test_scaled, ncol = 142)
+y = train_scaled$y
+set.seed(1)
+cv.out.lasso <- cv.glmnet(X_train, y, alpha = 1)
+# one standard error rule
+bestlam_lasso <- cv.out.lasso$lambda.1se
+bestlam_lasso
+```
+
+```{r}
+plot(cv.out.lasso, se = TRUE)
+```
+
+```{r}
+lasso.mod <- glmnet(X_train, train_scaled$y, alpha = 1)
+lasso.pred.tr <- predict(lasso.mod, s = bestlam_lasso, newx = X_train)
+lasso.pred.te <- predict(lasso.mod, s = bestlam_lasso, newx = X_test)
+
+c<-coef(lasso.mod, s = bestlam_lasso)
+inds<-which(c!=0)
+(variables<-row.names(c)[inds])
+```
+
+```{r}
+new_train <- train_scaled[ ,variables[-1]]
+new_train <- data.frame(y, new_train)
+head(new_train)
+```
+
+```{r}
+library(pls)
+set.seed(1)
+pcr.fit <- pcr(y ~ ., data = new_train, scale = FALSE, validation = "CV")
+validationplot(pcr.fit, val.type = "MSEP", legendpos = "topright")
+```
+```{r}
+cverr <- RMSEP(pcr.fit)$val[1,,]
+which.min(cverr) - 1
+```
+```{r}
+pred_pcr <- predict(pcr.fit, X_test[ ,variables[-1]], ncomp = 30)
+```
+
+```{r}
+par(mfrow=c(2,3))
+hist(y, xlim=c(-10, 10), ylim = c(0, 250), breaks = 233)
+hist(lasso.pred.te,xlim=c(-10, 10), ylim = c(0, 250), breaks = 100)
+hist(pred_pcr,xlim=c(-10, 10), ylim = c(0, 250), breaks = 100)
+```
+
+```{r}
+test.org <- read.csv("/Users/jennifer.l/Desktop/STATS415/final_project/test.csv")
+head(test.org)
+```
+```{r}
+# random forest
+library(randomForest)
+rf_fit <- randomForest(y ~., data = new_train, importance = TRUE)
+```
+
+```{r}
+(var <- rf_fit$importance)
+data.frame(var)
+inds = which(var[ ,1] > 0.1)
+variables_1 = row.names(var)[inds]
+data.frame(variables_1)
+pred_rf_train <- predict(rf_fit, newdata = new_train)
+(MSE_rf <- mean((pred_rf_train - new_train$y)^2))
+pred_rf <- predict(rf_fit, newdata=X_test[ ,variables[-1]])
+```
+
+```{r}
+sort(variables_1)
+```
+
+```{r}
+varImpPlot(rf_fit)
+```
+```{r}
+newer_train <- new_train[ ,variables_1]
+newer_train <- data.frame(y, newer_train)
+head(newer_train)
+library(corrplot)
+corrplot(cor(newer_train[ ,-1]))
+```
+```{r}
+head(newer_train)
+corrplot(cor(newer_train[ ,-1]))
+```
+
+```{r}
+rf_fit_2 <- randomForest(y ~., data = newer_train, ntree = 5000, importance = TRUE, nodesize = 3)
+pred_rf2_train <- predict(rf_fit_2, newdata = newer_train)
+(MSE_rf_2 <- mean((pred_rf2_train - y)^2))
+pred_rf_2 <- predict(rf_fit_2, newdata=X_test[ ,variables_1])
+```
+```{r}
+varImpPlot(rf_fit_2)
+```
+
+
+```{r}
+test.org$y <- c(pred_rf_2)
+head(test.org)
+```
+
+
+```{r}
+rf_fit_3 <- randomForest(y~., data = train_afterboost, mtry = 15, ntree = 500, importance = TRUE, nodesize = 3)
+varImpPlot(rf_fit_3)
+```
+
+```{r}
+pred_rf3_train <- predict(rf_fit_3, newdata = train_afterboost)
+(MSE_rf_3 <- mean((pred_rf3_train - train_afterboost$y)^2))
+pred_rf_3 <- predict(rf_fit_3, newdata = test_afterboost)
+```
+
+
+```{r}
+library(gbm)
+set.seed(1)
+boost_mod <- gbm(
+y~.,
+data=new_train,
+distribution="gaussian",
+n.trees=5000,
+interaction.depth=6,
+shrinkage = 0.01)
+```
+
+```{r}
+summary(boost_mod)
+```
+```{r}
+new_test = data.frame(X_test[ ,variables[-1]])
+boost_test_preds <- predict(boost_mod, newdata = new_test, n.trees=5000)
+boost_train_preds <- predict(boost_mod, newdata = new_train, n.trees=5000)
+(train_mse_boost <- mean((boost_train_preds - new_train$y)^2))
+```
+
+```{r}
+temp <- data.frame(summary(boost_mod))
+inds = which(temp[ ,2] > 1)
+variables_2 = row.names(temp)[inds]
+(test_afterboost = data.frame(X_test[ ,variables_2]))
+(train_afterboost = data.frame(y, new_train[ ,variables_2]))
+```
+
+
+```{r}
+test.org$y <- c(pred_rf_3)
+head(test.org)
+```
+```{r}
+set.seed(1)
+boost_mod_2 <- gbm(
+y~.,
+data=train_afterboost,
+distribution="gaussian",
+n.trees=5000,
+interaction.depth=10,
+shrinkage = 0.001)
+```
+
+```{r}
+boost_test_preds_2 <- predict(boost_mod_2, newdata = test_afterboost, n.trees=5000)
+boost_train_preds_2 <- predict(boost_mod_2, newdata = train_afterboost, n.trees=5000)
+(train_mse_boost <- mean((boost_train_preds_2 - y)^2))
+```
+
+```{r}
+# BAET
+library(BART)
+set.seed(1)
+barfit <- gbart(train_afterboost[ , -1], y, x.test = test_afterboost)
+```
+```{r}
+bart_preds <- barfit$yhat.test.mean
+mean((new_train$y - barfit$yhat.train.mean)^2)
+```
+
+```{r}
+test.org$y <- c(pred_rf_3)
+head(test.org)
+```
+
+
+```{r}
+write_csv(test.org, "submission_0327_randomforest_13.csv")
+```
+
+
+```{r}
+rf.full.fit <- randomForest(y ~., data = train_scaled, importance = TRUE)
+```
+
+```{r}
+varImpPlot(rf.full.fit, cex = 0.5)
+```
+
+```{r}
+vars <- rf.full.fit$importance
+data.frame(vars)
+inds = which(vars[ ,1] > 0.07)
+variables_2 = row.names(vars)[inds]
+data.frame(variables_2)
+```
+
+```{r}
+pred_rf_full_train <- predict(rf.full.fit, newdata = train_scaled)
+(MSE_rf_full <- mean((pred_rf_full_train - train_scaled$y)^2))
+pred_rf_full_test <- predict(rf.full.fit, newdata = test_scaled)
+```
+
+```{r}
+y <- train_scaled$y
+train_selected <- train_scaled[ ,variables_2]
+train_selected <- data.frame(y, train_selected)
+test_selected <- test_scaled[ ,variables_2]
+head(train_selected)
+head(test_selected)
+write_csv(train_selected, "kaggle_train_selected_25.csv")
+write_csv(test_selected, "kaggle_test_selected_25.csv")
+```
+
+
+```{r}
+rf.full2.fit <- randomForest(y ~., data = train_selected, importance = TRUE, ntree = 1000, mtry = 15, nodesize = 3)
+```
+
+```{r}
+varImpPlot(rf.full2.fit, cex = 0.5)
+```
+
+```{r}
+pred_rf_full2_train <- predict(rf.full2.fit, newdata = train_selected)
+(MSE_rf_full2 <- mean((pred_rf_full2_train - train_selected$y)^2))
+pred_rf_full2_test <- predict(rf.full2.fit, newdata = test_selected)
+```
+
+
+```{r}
+library(gbm)
+set.seed(1)
+boost_mod <- gbm(
+y~.,
+data=train_scaled,
+distribution="gaussian",
+n.trees=5000,
+interaction.depth=7,
+shrinkage = 0.05)
+```
+
+```{r}
+summary(boost_mod)
+```
+
+```{r}
+boost_test_preds <- predict(boost_mod, newdata = test_scaled, n.trees=5000)
+boost_train_preds <- predict(boost_mod, newdata = train_scaled, n.trees=5000)
+(train_mse_boost <- mean((boost_train_preds - train_scaled$y)^2))
+```
+
+
+```{r}
+# tuning parameters for boosting
+library(caret)
+
+fitControl <- trainControl(## 10-fold CV
+                           method = "repeatedcv",
+                           number = 10,
+                           ## repeated ten times
+                           repeats = 10)
+
+gbmGrid <- expand.grid(interaction.depth = (5:10), 
+                        n.trees = c(500, 1000, 2500, 5000), 
+                        n.minobsinnode = 20, 
+                        shrinkage = 0.1)
+                        
+nrow(gbmGrid)
+
+set.seed(47)
+gbmFit <- train(y ~ ., data = train_scaled, 
+                 method = "gbm", 
+                 trControl = fitControl, 
+                 verbose = FALSE, 
+                 ## Now specify the exact models 
+                 ## to evaluate:
+                 tuneGrid = gbmGrid)
+gbmFit
+```
+
+```{r}
+test.org <- read.csv("/Users/jennifer.l/Desktop/STATS415/final_project/test.csv")
+head(test.org)
+```
+
+```{r}
+test.org$y <- c(boost_test_preds)
+head(test.org)
+```
+
+```{r}
+write_csv(test.org, "submission.csv")
+```
+
+```{r}
+par(mfrow=c(2,3))
+hist(y, xlim=c(-10, 10), ylim = c(0, 250), breaks = 233)
+# hist(pred_pcr,xlim=c(-10, 10), ylim = c(0, 250), breaks = 100)
+hist(pred_rf_full_test,xlim=c(-10, 10), ylim = c(0, 250), breaks = 100)
+hist(pred_rf_full2_train,xlim=c(-10, 10), ylim = c(0, 250), breaks = 233)
+hist(pred_rf_full2_test,xlim=c(-10, 10), ylim = c(0, 250), breaks = 100)
+hist(boost_train_preds,xlim=c(-10, 10), ylim = c(0, 250), breaks = 233)
+hist(boost_test_preds,xlim=c(-10, 10), ylim = c(0, 250), breaks = 100)
+
+```
+
+
