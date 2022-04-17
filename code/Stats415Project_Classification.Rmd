@@ -1,6 +1,6 @@
 ---
-title: "STATS415Project"
-author: "Kou, Jialin"
+title: "STATS415 Final Project Classification"
+author: "Qingyang Liu, Ziwei Tian, Jialin Kou"
 date: '2022-03-11'
 output: pdf_document
 ---
@@ -21,9 +21,7 @@ library(randomForest)
 library(FNN)
 ```
 
-```{r}
-# In the data processing part, you should replace all the file pathname with the pathname of files in this Repo. 
-```
+## Data loading and processing
 
 ```{r}
 Waist_1112 <- read_xpt(file = "BodyMeasure1112.XPT") %>% dplyr::select(SEQN, BMXWAIST)
@@ -32,11 +30,7 @@ Waist_df <- rbind(Waist_1112, Wasit_1314)
 ```
 
 ```{r}
-write.csv(Waist_df, "Waist1114.csv", row.names = F)
-```
-
-```{r}
-#data_0910 = read_xpt(file = "~/Desktop/Umich/2022 WIN/Stats 415/Stats415Project/project data/dep0910.XPT")
+#write.csv(Waist_df, "Waist1114.csv", row.names = F)
 ```
 
 ```{r}
@@ -50,7 +44,7 @@ BloodPressure <- rbind(BP_1314, BP_1112) %>% filter(BPXDI2 != 0)
 ```
 
 ```{r}
-write.csv(BloodPressure, "BloodPressure1114.csv", row.names = F)
+#write.csv(BloodPressure, "BloodPressure1114.csv", row.names = F)
 ```
 
 ```{r}
@@ -59,25 +53,32 @@ Hypertension <- read.csv("hypertension1114.csv")
 
 ```{r}
 Medical_1112 <- read_xpt("medical1112.XPT")
-coronary_heart_1112 <- Medical_1112 %>% dplyr::select(SEQN, MCQ160C) %>% filter(MCQ160C %in% c(1,2)) %>% mutate(C_H = ifelse(MCQ160C == 1,1,0)) %>% dplyr::select(-MCQ160C) 
-overweight_1112 <- Medical_1112 %>% dplyr::select(SEQN, MCQ080) %>% filter(MCQ080 %in% c(1,2)) %>% mutate(OW = ifelse(MCQ080 == 1,1,0)) %>% dplyr::select(-MCQ080) 
+coronary_heart_1112 <- Medical_1112 %>% dplyr::select(SEQN, MCQ160C) %>% 
+  filter(MCQ160C %in% c(1,2)) %>% mutate(C_H = ifelse(MCQ160C == 1,1,0)) %>% 
+  dplyr::select(-MCQ160C) 
+overweight_1112 <- Medical_1112 %>% dplyr::select(SEQN, MCQ080) %>% 
+  filter(MCQ080 %in% c(1,2)) %>% mutate(OW = ifelse(MCQ080 == 1,1,0)) %>% dplyr::select(-MCQ080) 
 
 Medical_1516 <- read_xpt("medical1516.XPT")
-coronary_heart_1516 <- Medical_1516 %>% dplyr::select(SEQN, MCQ160C) %>% filter(MCQ160C %in% c(1,2)) %>% mutate(C_H = ifelse(MCQ160C == 1,1,0)) %>% dplyr::select(-MCQ160C) 
-overweight_1516 <- Medical_1516 %>% dplyr::select(SEQN, MCQ080) %>% filter(MCQ080 %in% c(1,2)) %>% mutate(OW = ifelse(MCQ080 == 1,1,0)) %>% dplyr::select(-MCQ080) 
+coronary_heart_1516 <- Medical_1516 %>% dplyr::select(SEQN, MCQ160C) %>% 
+  filter(MCQ160C %in% c(1,2)) %>% mutate(C_H = ifelse(MCQ160C == 1,1,0)) %>% 
+  dplyr::select(-MCQ160C) 
+overweight_1516 <- Medical_1516 %>% dplyr::select(SEQN, MCQ080) %>% 
+  filter(MCQ080 %in% c(1,2)) %>% mutate(OW = ifelse(MCQ080 == 1,1,0)) %>% dplyr::select(-MCQ080) 
 
 Medical_1314 <- read_xpt("medical1314.XPT")
-coronary_heart_1314 <- Medical_1314 %>% dplyr::select(SEQN, MCQ160C) %>% filter(MCQ160C %in% c(1,2)) %>% mutate(C_H = ifelse(MCQ160C == 1,1,0)) %>% dplyr::select(-MCQ160C) 
-overweight_1314 <- Medical_1314 %>% dplyr::select(SEQN, MCQ080) %>% filter(MCQ080 %in% c(1,2)) %>% mutate(OW = ifelse(MCQ080 == 1,1,0)) %>% dplyr::select(-MCQ080) 
+coronary_heart_1314 <- Medical_1314 %>% dplyr::select(SEQN, MCQ160C) %>% 
+  filter(MCQ160C %in% c(1,2)) %>% mutate(C_H = ifelse(MCQ160C == 1,1,0)) %>% 
+  dplyr::select(-MCQ160C) 
+overweight_1314 <- Medical_1314 %>% dplyr::select(SEQN, MCQ080) %>% 
+  filter(MCQ080 %in% c(1,2)) %>% mutate(OW = ifelse(MCQ080 == 1,1,0)) %>% dplyr::select(-MCQ080) 
 
 coronary_heart <- rbind(coronary_heart_1112,coronary_heart_1314)
 overweight <- rbind(overweight_1112, overweight_1314)
-
-#thyroid_problem <- Medical_1516 %>% dplyr::select(SEQN, MCQ160M) %>% filter(MCQ160M %in% c(1,2)) %>% mutate(T_P = ifelse(MCQ160M == #1,1,0))%>% dplyr::select(-MCQ160M) 
 ```
 
 ```{r}
-write.csv(overweight, "overweight1114.csv", row.names = F)
+#write.csv(overweight, "overweight1114.csv", row.names = F)
 ```
 
 ```{r}
@@ -108,7 +109,6 @@ diabetes_df <- df %>%
     )
   )
 ```
-
 
 ```{r}
 diab_df <- diabetes_df %>% mutate(diabetes = ifelse(DIQ010 == 1,1,0)) %>% dplyr::select(-DIQ010)
@@ -142,48 +142,30 @@ coronary_heart_7 <- left_join(coronary_heart_6, Waist_df, by = 'SEQN', all.x = T
 coronary_heart_8 <- left_join(coronary_heart_7, Hypertension, by = 'SEQN', all.x = TRUE) 
 coronary_heart_9 <- left_join(coronary_heart_8, Glucose, by = 'SEQN', all.x = TRUE) %>% 
   mutate(Race = as.factor(Race), Gender = as.factor(Gender), diabetes = as.factor(diabetes),
-         Smoking = as.factor(Smoking), OW = as.factor(OW), hypertension = as.factor(hypertension)) %>% dplyr::select(-X) %>% na.omit()
+         Smoking = as.factor(Smoking), OW = as.factor(OW), 
+         hypertension = as.factor(hypertension)) %>% dplyr::select(-X) %>% na.omit()
 
 ```
 
 ```{r}
-write.csv(coronary_heart_9, "ClassificationData.csv", row.names = F)
+# write.csv(coronary_heart_9, "ClassificationData.csv", row.names = F)
 ```
 
+## Exploratory Data Analysis
+
 ```{r}
+# ratio of geting CH in each age group
 coronary_heart_9 %>% group_by(Age_group) %>% summarize(n = n(), CH = sum(C_H), ratio = CH/n)
 ```
 
 ```{r}
+# ratio of getting CH conditional on whether the individual also got diabetes
 coronary_heart_9 %>% group_by(diabetes) %>% summarize(n=n(), CH = sum(C_H), ratio = CH/n)
 ```
 
 ```{r}
+# ratio of getting CH conditional on each race category
 coronary_heart_9 %>% group_by(Race) %>% summarize(n=n(), CH = sum(C_H), ratio = CH/n)
-```
-
-
-```{r}
-coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = BPXSY2)) + geom_boxplot(aes(fill = Age_group)) +
-  labs(x = "Coronary heart disease", y = "Systolic blood pressure")
-```
-```{r}
-coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = BPXDI2)) + geom_boxplot(aes(fill = Age_group))+
-  labs(x = "Coronary heart disease", y = "Diastolic blood pressure")
-```
-
-```{r}
-coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = LDL)) + geom_boxplot(aes(fill = Age_group))  +
-  labs(x = "Coronary heart disease", y = "Low-density lipoprotein")
-```
-
-```{r}
-coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = HDL)) + geom_boxplot(aes(fill = Age_group)) +
-  labs(x = "Coronary heart disease", y = "High-density lipoprotein")
-```
-
-```{r}
-coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = Poverty)) + geom_boxplot(aes(fill = Age_group))
 ```
 
 ```{r}
@@ -199,11 +181,29 @@ ggplot(coronary_heart_9) + geom_bar(aes(x = Age_group, fill = as.factor(C_H)), p
 ```
 
 ```{r}
-ggplot(coronary_heart_9) + geom_bar(aes(x = Age_group, fill = as.factor(C_H)), position = "fill")
+coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = BPXSY2)) + 
+  geom_boxplot(aes(fill = Age_group)) +
+  labs(x = "Coronary heart disease", y = "Systolic blood pressure")
+```
+```{r}
+coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = BPXDI2)) + 
+  geom_boxplot(aes(fill = Age_group))+
+  labs(x = "Coronary heart disease", y = "Diastolic blood pressure")
 ```
 
 ```{r}
-coronary_heart_9 %>% group_by(OW) %>% summarize(n = n(), CH = sum(C_H), ratio = CH/n)
+coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = LDL)) + geom_boxplot(aes(fill = Age_group))  +
+  labs(x = "Coronary heart disease", y = "Low-density lipoprotein")
+```
+
+```{r}
+coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = HDL)) + geom_boxplot(aes(fill = Age_group)) +
+  labs(x = "Coronary heart disease", y = "High-density lipoprotein")
+```
+
+```{r}
+coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = Poverty)) + 
+  geom_boxplot(aes(fill = Age_group))
 ```
 
 # Model fitting
@@ -215,124 +215,15 @@ train_df <- coronary_heart_9[train_idx, ]
 test_df <- coronary_heart_9[-train_idx, ]
 ```
 
+## Best subset selection
 ```{r}
 n_predictors <- ncol(coronary_heart_9) - 1
-regfit.full <- regsubsets(as.factor(C_H) ~ .-SEQN-Age_group, data = coronary_heart_9, nvmax = n_predictors)
+regfit.full <- regsubsets(as.factor(C_H) ~ .-SEQN-Age_group, 
+                          data = coronary_heart_9, nvmax = n_predictors)
 reg.summary <- summary(regfit.full)
 #names(reg.summary)
 which.min(reg.summary$bic)
 reg.summary$which[9,]
-```
-
-### QDA
-
-```{r}
-fit_qda = qda(as.factor(C_H) ~ .-SEQN-Triglyceride-HDL-Smoking-Alcohol-OW-BMXWAIST-Glucose-Age_group, 
-              data = train_df)
-fit_qda
-```
-```{r}
-qda_train_pred = predict(fit_qda, train_df)$class
-qda_test_pred = predict(fit_qda, test_df)$class
-qda_test = predict(fit_qda, test_df)$posterior[,2]
-qda_train = predict(fit_qda, train_df)$posterior[,2]
-```
-
-```{r}
-# standard threshold
-train_err = mean(qda_train_pred != train_df$C_H)
-train_err
-test_err = mean(qda_test_pred != test_df$C_H)
-test_err
-c <- table(predicted = qda_test_pred, actual = test_df$C_H)
-c
-```
-
-```{r}
-TPR <- c[2,2]/(c[2,2]+c[1,2])
-TPR
-TNR <- c[1,1]/(c[1,1]+c[2,1])
-TNR
-```
-
-```{r}
-# setting threshold manually
-qda_train_y = ifelse(qda_train > 0.04, 1, 0)
-qda_test_y = ifelse(qda_test > 0.04, 1, 0)
-```
-
-```{r}
-# setting threshold manually
-tr_err = mean(qda_train_y != train_df$C_H)
-tr_err
-te_err = mean(qda_test_y != test_df$C_H)
-te_err
-d <- table(predicted = qda_test_y, actual = test_df$C_H)
-d 
-```
-
-```{r}
-TPR <- d[2,2]/(d[2,2]+d[1,2])
-TPR
-TNR <- d[1,1]/(d[1,1]+d[2,1])
-TNR
-```
-
-### LDA
-
-```{r}
-fit_lda = lda(as.factor(C_H) ~ .-SEQN-Triglyceride-HDL-Smoking-Alcohol-OW-BMXWAIST-Glucose-Age_group, 
-              data = train_df)
-fit_lda
-```
-
-```{r}
-lda_train_pred = predict(fit_lda, train_df)$class
-lda_test_pred = predict(fit_lda, test_df)$class
-
-lda_test = predict(fit_lda, test_df)$posterior[,2]
-lda_train = predict(fit_lda, train_df)$posterior[,2]
-```
-
-```{r}
-# standard threshold
-train_err = mean(lda_train_pred != train_df$C_H)
-train_err
-test_err = mean(lda_test_pred != test_df$C_H)
-test_err
-b <- table(predicted = lda_test_pred, actual = test_df$C_H)
-b 
-```
-
-```{r}
-# standard threshold
-TPR <- b[2,2]/(b[2,2]+b[1,2])
-TPR
-TNR <- b[1,1]/(b[1,1]+b[2,1])
-TNR
-```
-
-```{r}
-# setting threshold manually
-lda_train_y = ifelse(lda_train > 0.04, 1, 0)
-lda_test_y = ifelse(lda_test > 0.04, 1, 0)
-```
-
-```{r}
-# setting threshold manually
-tr_err = mean(lda_train_y != train_df$C_H)
-tr_err
-te_err = mean(lda_test_y != test_df$C_H)
-te_err
-e <- table(predicted = lda_test_y, actual = test_df$C_H)
-e 
-```
-
-```{r}
-TPR <- e[2,2]/(e[2,2]+e[1,2])
-TPR
-TNR <- e[1,1]/(e[1,1]+e[2,1])
-TNR
 ```
 
 ### Logistic regression
@@ -389,6 +280,119 @@ logit_manual
 TPR <- logit_manual[2,2]/(logit_manual[2,2]+logit_manual[1,2])
 TPR
 TNR <- logit_manual[1,1]/(logit_manual[1,1]+logit_manual[2,1])
+TNR
+```
+
+### LDA
+
+```{r}
+fit_lda = lda(as.factor(C_H) ~ .-SEQN-Triglyceride-HDL-Smoking-Alcohol-OW
+              -BMXWAIST-Glucose-Age_group, 
+              data = train_df)
+fit_lda
+```
+
+```{r}
+lda_train_pred = predict(fit_lda, train_df)$class
+lda_test_pred = predict(fit_lda, test_df)$class
+
+lda_test = predict(fit_lda, test_df)$posterior[,2]
+lda_train = predict(fit_lda, train_df)$posterior[,2]
+```
+
+```{r}
+# standard threshold
+train_err = mean(lda_train_pred != train_df$C_H)
+train_err
+test_err = mean(lda_test_pred != test_df$C_H)
+test_err
+b <- table(predicted = lda_test_pred, actual = test_df$C_H)
+b 
+```
+
+```{r}
+# standard threshold
+TPR <- b[2,2]/(b[2,2]+b[1,2])
+TPR
+TNR <- b[1,1]/(b[1,1]+b[2,1])
+TNR
+```
+
+```{r}
+# setting threshold manually
+lda_train_y = ifelse(lda_train > 0.04, 1, 0)
+lda_test_y = ifelse(lda_test > 0.04, 1, 0)
+```
+
+```{r}
+# setting threshold manually
+tr_err = mean(lda_train_y != train_df$C_H)
+tr_err
+te_err = mean(lda_test_y != test_df$C_H)
+te_err
+e <- table(predicted = lda_test_y, actual = test_df$C_H)
+e 
+```
+
+```{r}
+TPR <- e[2,2]/(e[2,2]+e[1,2])
+TPR
+TNR <- e[1,1]/(e[1,1]+e[2,1])
+TNR
+```
+
+### QDA
+
+```{r}
+fit_qda = qda(as.factor(C_H) ~ .-SEQN-Triglyceride-HDL-Smoking-Alcohol-OW
+              -BMXWAIST-Glucose-Age_group, 
+              data = train_df)
+fit_qda
+```
+```{r}
+qda_train_pred = predict(fit_qda, train_df)$class
+qda_test_pred = predict(fit_qda, test_df)$class
+qda_test = predict(fit_qda, test_df)$posterior[,2]
+qda_train = predict(fit_qda, train_df)$posterior[,2]
+```
+
+```{r}
+# standard threshold
+train_err = mean(qda_train_pred != train_df$C_H)
+train_err
+test_err = mean(qda_test_pred != test_df$C_H)
+test_err
+c <- table(predicted = qda_test_pred, actual = test_df$C_H)
+c
+```
+
+```{r}
+TPR <- c[2,2]/(c[2,2]+c[1,2])
+TPR
+TNR <- c[1,1]/(c[1,1]+c[2,1])
+TNR
+```
+
+```{r}
+# setting threshold manually
+qda_train_y = ifelse(qda_train > 0.04, 1, 0)
+qda_test_y = ifelse(qda_test > 0.04, 1, 0)
+```
+
+```{r}
+# setting threshold manually
+tr_err = mean(qda_train_y != train_df$C_H)
+tr_err
+te_err = mean(qda_test_y != test_df$C_H)
+te_err
+d <- table(predicted = qda_test_y, actual = test_df$C_H)
+d 
+```
+
+```{r}
+TPR <- d[2,2]/(d[2,2]+d[1,2])
+TPR
+TNR <- d[1,1]/(d[1,1]+d[2,1])
 TNR
 ```
 
@@ -490,7 +494,7 @@ TNR
 pred1 = prediction(logit_test_pred, test_df$C_H)
 pred2 = prediction(qda_test, test_df$C_H)
 pred3 = prediction(lda_test, test_df$C_H)
-pred4 = prediction(rf_prob_te[,2], test_df$C_H)
+pred4 = prediction(rf_prob_te, test_df$C_H)
 roc1 = performance(pred1, "tpr", "fpr")
 roc2 = performance(pred2, "tpr", "fpr")
 roc3 = performance(pred3, "tpr", "fpr")
@@ -499,13 +503,14 @@ plot(roc1, col='red', lwd =2)
 plot(roc2, col='blue', lwd =2, add = TRUE)
 plot(roc3, col='green', lwd =2, add = TRUE)
 plot(roc4, col='purple', lwd =2, add = TRUE)
-legend("bottomright", c("Logistic","QDA", "LDA", "RF"), col = c("red", "blue", "green", "purple"), lwd = 2)
+legend("bottomright", c("Logistic","QDA", "LDA", "RF"), 
+       col = c("red", "blue", "green", "purple"), lwd = 2)
 #lines(roc2)
 abline(0,1)
 ```
 
 |  Classification method | Threshold |True Positive Rate | True Negative Rate | 
-|-----|----------|----------|----------|
+|----------|----------|----------|----------|
 | Logistic regression | 0.500 | 0.0571 | 0.997 |
 | LDA |  0.500 | 0.0857 | 0.982 |
 | QDA |  0.500 | 0.400 | 0.932 |
@@ -513,7 +518,7 @@ abline(0,1)
 
 
 | Classification method | Threshold | True Positive Rate | True Negative Rate | 
-|-----|----------|----------|----------|
+|----------|----------|----------|----------|
 | Logistic regression | 0.04 | 0.800 | 0.814 |
 | LDA | 0.04 | 0.800 | 0.814 |
 | QDA | 0.04 | 0.743 | 0.778 |
