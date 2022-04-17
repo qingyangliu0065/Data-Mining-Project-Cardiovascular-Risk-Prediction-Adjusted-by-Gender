@@ -1,0 +1,146 @@
+---
+title: "415_proj"
+author: "Ziwei Tian (ZIWEIT)"
+date: "4/15/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(haven)
+library(tidyverse)
+setwd("~/Desktop/Stats 415/Project")
+```
+
+# Response
+```{r}
+muscle_11 <- read_xpt("MGX_G.XPT") %>% dplyr::select(SEQN, MGDCGSZ) %>% na.omit()
+muscle_13 <- read_xpt("MGX_H.XPT") %>% dplyr::select(SEQN, MGDCGSZ) %>% na.omit()
+
+muscle_total <- rbind(muscle_11, muscle_13)
+colnames(muscle_total)[c(2)] <- c("Strength")
+
+write.csv(muscle_total, "muscle1114.csv", row.names = FALSE)
+```
+
+```{r}
+smoke_11 <- read_xpt("SMQRTU_G.XPT") %>% dplyr::select(SEQN, SMQ680) %>% na.omit() %>% filter(SMQ680 <= 2)
+smoke_13 <- read_xpt("SMQRTU_H.XPT") %>% dplyr::select(SEQN, SMQ681) %>% na.omit() %>% filter(SMQ681 <= 2)
+
+colnames(smoke_11)[2] <- "Smoking"
+colnames(smoke_13)[2] <- "Smoking"
+
+smoke_total <- rbind(smoke_11, smoke_13)
+smoke_total[smoke_total$Smoking == 2, 2] = 0
+
+write.csv(smoke_total, "smoking1114.csv", row.names = FALSE)
+```
+
+```{r}
+alcohol_11 <- read_xpt("ALQ_G.XPT") %>% dplyr::select(SEQN, ALQ120Q) %>% na.omit() %>% filter(ALQ120Q <=365)
+alcohol_13 <- read_xpt("ALQ_H.XPT") %>% dplyr::select(SEQN, ALQ120Q) %>% na.omit() %>% filter(ALQ120Q <=365)
+
+alcohol_total <- rbind(alcohol_11, alcohol_13)
+colnames(alcohol_total)[2] <- "Alcohol"
+
+write.csv(alcohol_total, "alcohol1114.csv", row.names = FALSE)
+```
+
+
+```{r}
+chol_low_11 <- read_xpt("TRIGLY_G.XPT") %>% dplyr::select(SEQN, LBXTR, LBDLDL) %>% na.omit()
+chol_high_11 <- read_xpt("HDL_G.XPT") %>% dplyr::select(SEQN, LBDHDD) %>% na.omit()
+
+chol_low_13 <- read_xpt("TRIGLY_H.XPT") %>% dplyr::select(SEQN, LBXTR, LBDLDL) %>% na.omit()
+chol_high_13 <- read_xpt("HDL_H.XPT") %>% dplyr::select(SEQN, LBDHDD) %>% na.omit()
+
+chol_low_total <- rbind(chol_low_11, chol_low_13)
+chol_high_total <- rbind(chol_high_11, chol_high_13)
+
+colnames(chol_low_total)[c(2, 3)] <- c("Triglyceride", "LDL")
+colnames(chol_high_total)[c(2)] <- c("HDL")
+
+chol_total <- merge(chol_low_total, chol_high_total, by="SEQN")
+
+write.csv(chol_total, "cholesterol1114.csv", row.names = FALSE)
+```
+
+
+```{r}
+hypertension_11 <- read_xpt("BPQ_G.XPT") %>% dplyr::select(SEQN, BPQ020) %>% na.omit() %>% filter(BPQ020 <= 2)
+hypertension_13 <- read_xpt("BPQ_H.XPT") %>% dplyr::select(SEQN, BPQ020) %>% na.omit() %>% filter(BPQ020 <= 2)
+
+hypertension_total <- rbind(hypertension_11, hypertension_13)
+colnames(hypertension_total)[2] <- c("Hypertension")
+hypertension_total[hypertension_total$Hypertension == 2, 2] = 0
+
+write.csv(hypertension_total, "hypertension1114.csv", row.names = FALSE)
+```
+
+```{r}
+glucose_11 <- read_xpt("GLU_G.XPT") %>% dplyr::select(SEQN, LBXGLU) %>% na.omit()
+glucose_13 <- read_xpt("GLU_H.XPT") %>% dplyr::select(SEQN, LBXGLU) %>% na.omit()
+
+glucose_total <- rbind(glucose_11, glucose_13)
+colnames(glucose_total)[2] <- c("Glucose")
+
+write.csv(glucose_total, "glucose1114.csv", row.names = FALSE)
+```
+
+```{r}
+waist_total <- read.csv("Waist1114.csv") %>% na.omit()
+colnames(waist_total)[2] <- "Waist"
+```
+
+```{r}
+diabetes_11 <- read_xpt("DIQ_G.XPT") %>% dplyr::select(SEQN, DIQ010) %>% na.omit() %>% filter(DIQ010 <= 2)
+diabetes_13 <- read_xpt("DIQ_H.XPT") %>% dplyr::select(SEQN, DIQ010) %>% na.omit() %>% filter(DIQ010 <= 2)
+
+diabetes_total <- rbind(diabetes_11, diabetes_13)
+colnames(diabetes_total)[2] <- c("Diabetes")
+diabetes_total[diabetes_total$Diabetes == 2, 2] = 0
+
+write.csv(diabetes_total, "diabetes1114.csv", row.names = FALSE)
+```
+
+```{r}
+pressure_total <- read.csv("BloodPressure1114.csv") %>% na.omit()
+colnames(pressure_total)[c(2, 3)] <- c("Systolic_Pressure", "Diastolic_Pressure")
+```
+
+```{r}
+demo_11 <- read_xpt("DEMO_G.XPT") %>% dplyr::select(SEQN, RIDAGEYR, RIDRETH3, RIAGENDR, INDFMPIR) %>% na.omit()
+demo_13 <- read_xpt("DEMO_H.XPT") %>% dplyr::select(SEQN, RIDAGEYR, RIDRETH3, RIAGENDR, INDFMPIR) %>% na.omit()
+
+demo_total <- rbind(demo_11, demo_13)
+colnames(demo_total)[c(2:5)] <- c("Age", "Race", "Gender", "Poverty")
+
+write.csv(demo_total, "demo1114.csv", row.names = FALSE)
+```
+
+```{r}
+overweight_total <- read.csv("overweight1114.csv") %>% na.omit()
+```
+
+```{r}
+total <- merge(muscle_total, demo_total, by="SEQN")
+total <- merge(total, pressure_total, by="SEQN")
+total <- merge(total, chol_total, by="SEQN")
+total <- merge(total, glucose_total, by="SEQN")
+total <- merge(total, overweight_total, by="SEQN")
+total <- merge(total, waist_total, by="SEQN")
+total <- merge(total, smoke_total, by="SEQN")
+total <- merge(total, alcohol_total, by="SEQN")
+total <- merge(total, hypertension_total, by="SEQN")
+total <- merge(total, diabetes_total, by="SEQN")
+
+regression <- total[,-1]
+```
+
+```{r}
+write.csv(regression, "Regression.csv", row.names = FALSE)
+```
+
