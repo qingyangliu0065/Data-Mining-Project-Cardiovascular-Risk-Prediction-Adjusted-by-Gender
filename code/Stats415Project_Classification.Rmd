@@ -1,0 +1,523 @@
+---
+title: "STATS415Project"
+author: "Kou, Jialin"
+date: '2022-03-11'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#install.packages("ROCR")
+library(haven)
+library(tidyverse)
+library(ggplot2)
+library(MASS)
+library(ROCR)
+library(leaps)
+library(randomForest)
+library(FNN)
+```
+
+```{r}
+regress_data <- read.csv("regress_data.csv")
+class_data <- read.csv("class_data.csv")
+```
+
+```{r}
+Waist_1112 <- read_xpt(file = "BodyMeasure1112.XPT") %>% dplyr::select(SEQN, BMXWAIST)
+Wasit_1314 <- read_xpt(file = "BodyMeasure1314.XPT") %>% dplyr::select(SEQN, BMXWAIST)
+Waist_df <- rbind(Waist_1112, Wasit_1314)
+```
+
+```{r}
+write.csv(Waist_df, "Waist1114.csv", row.names = F)
+```
+
+```{r}
+#data_0910 = read_xpt(file = "~/Desktop/Umich/2022 WIN/Stats 415/Stats415Project/project data/dep0910.XPT")
+```
+
+```{r}
+BloodPressure_1314 <- read_xpt("bloodpressure1314.XPT")
+BP_1314 <- BloodPressure_1314 %>% dplyr::select(SEQN, BPXSY2, BPXDI2)
+
+BloodPressure_1112 <- read_xpt("BloodPressure1112.XPT")
+BP_1112 <- BloodPressure_1112 %>% dplyr::select(SEQN, BPXSY2, BPXDI2) 
+
+BloodPressure <- rbind(BP_1314, BP_1112) %>% filter(BPXDI2 != 0)
+```
+
+```{r}
+write.csv(BloodPressure, "BloodPressure1114.csv", row.names = F)
+```
+
+```{r}
+Hypertension <- read.csv("hypertension1114.csv")
+```
+
+```{r}
+Medical_1112 <- read_xpt("medical1112.XPT")
+coronary_heart_1112 <- Medical_1112 %>% dplyr::select(SEQN, MCQ160C) %>% filter(MCQ160C %in% c(1,2)) %>% mutate(C_H = ifelse(MCQ160C == 1,1,0)) %>% dplyr::select(-MCQ160C) 
+overweight_1112 <- Medical_1112 %>% dplyr::select(SEQN, MCQ080) %>% filter(MCQ080 %in% c(1,2)) %>% mutate(OW = ifelse(MCQ080 == 1,1,0)) %>% dplyr::select(-MCQ080) 
+
+Medical_1516 <- read_xpt("medical1516.XPT")
+coronary_heart_1516 <- Medical_1516 %>% dplyr::select(SEQN, MCQ160C) %>% filter(MCQ160C %in% c(1,2)) %>% mutate(C_H = ifelse(MCQ160C == 1,1,0)) %>% dplyr::select(-MCQ160C) 
+overweight_1516 <- Medical_1516 %>% dplyr::select(SEQN, MCQ080) %>% filter(MCQ080 %in% c(1,2)) %>% mutate(OW = ifelse(MCQ080 == 1,1,0)) %>% dplyr::select(-MCQ080) 
+
+Medical_1314 <- read_xpt("medical1314.XPT")
+coronary_heart_1314 <- Medical_1314 %>% dplyr::select(SEQN, MCQ160C) %>% filter(MCQ160C %in% c(1,2)) %>% mutate(C_H = ifelse(MCQ160C == 1,1,0)) %>% dplyr::select(-MCQ160C) 
+overweight_1314 <- Medical_1314 %>% dplyr::select(SEQN, MCQ080) %>% filter(MCQ080 %in% c(1,2)) %>% mutate(OW = ifelse(MCQ080 == 1,1,0)) %>% dplyr::select(-MCQ080) 
+
+coronary_heart <- rbind(coronary_heart_1112,coronary_heart_1314)
+overweight <- rbind(overweight_1112, overweight_1314)
+
+#thyroid_problem <- Medical_1516 %>% dplyr::select(SEQN, MCQ160M) %>% filter(MCQ160M %in% c(1,2)) %>% mutate(T_P = ifelse(MCQ160M == #1,1,0))%>% dplyr::select(-MCQ160M) 
+```
+
+```{r}
+write.csv(overweight, "overweight1114.csv", row.names = F)
+```
+
+```{r}
+diabetes_data <- read.csv("diabetes_07-18.csv")
+demo_data <- read.csv("demo1114.csv")
+```
+
+```{r}
+df <- left_join(diabetes_data, demo_data, by = 'SEQN', all.x = TRUE) %>% na.omit() 
+```
+
+```{r}
+diabetes_df <- df %>% 
+  mutate(
+    # Create categories
+    Age_group = dplyr::case_when(
+      Age <= 14            ~ "0-14",
+      Age > 14 & Age <= 30 ~ "15-30",
+      Age > 30 & Age <= 44 ~ "30-44",
+      Age > 44 & Age <= 60 ~ "45-60",
+      Age > 60 & Age <= 75 ~ "60-75",
+      Age > 75             ~ "> 75",
+    ),
+    # Convert to factor
+    Age_group = factor(
+      Age_group,
+      level = c("0-14", "15-30","30-44","45-60", "60-75", "> 75")
+    )
+  )
+```
+
+
+```{r}
+diab_df <- diabetes_df %>% mutate(diabetes = ifelse(DIQ010 == 1,1,0)) %>% dplyr::select(-DIQ010)
+```
+
+```{r}
+Alcohol <- read.csv("alcohol1114.csv")
+```
+
+```{r}
+Chol <- read.csv("cholesterol1114.csv") 
+```
+
+```{r}
+Glucose <- read.csv("glucose1114.csv")
+```
+
+```{r}
+Smoke <- read.csv("smoking1114.csv")
+Smoke_df <- Smoke %>% filter(Smoking %in% c(1,2)) %>% mutate(Smoking = ifelse(Smoking == 1, 1, 0))
+```
+
+```{r}
+coronary_heart_1 <- left_join(coronary_heart, diab_df, by = 'SEQN', all.x = TRUE) 
+coronary_heart_2 <- left_join(coronary_heart_1, BloodPressure, by = 'SEQN', all.x = TRUE) 
+coronary_heart_3 <- left_join(coronary_heart_2, Chol, by = 'SEQN', all.x = TRUE) 
+coronary_heart_4 <- left_join(coronary_heart_3, Smoke_df, by = 'SEQN', all.x = TRUE)  
+coronary_heart_5 <- left_join(coronary_heart_4, Alcohol, by = 'SEQN', all.x = TRUE) 
+coronary_heart_6 <- left_join(coronary_heart_5, overweight, by = 'SEQN', all.x = TRUE)
+coronary_heart_7 <- left_join(coronary_heart_6, Waist_df, by = 'SEQN', all.x = TRUE) 
+coronary_heart_8 <- left_join(coronary_heart_7, Hypertension, by = 'SEQN', all.x = TRUE) 
+coronary_heart_9 <- left_join(coronary_heart_8, Glucose, by = 'SEQN', all.x = TRUE) %>% 
+  mutate(Race = as.factor(Race), Gender = as.factor(Gender), diabetes = as.factor(diabetes),
+         Smoking = as.factor(Smoking), OW = as.factor(OW), hypertension = as.factor(hypertension)) %>% dplyr::select(-X) %>% na.omit()
+
+```
+
+```{r}
+write.csv(coronary_heart_9, "ClassificationData.csv", row.names = F)
+```
+
+```{r}
+coronary_heart_9 %>% group_by(Age_group) %>% summarize(n = n(), CH = sum(C_H), ratio = CH/n)
+```
+
+```{r}
+coronary_heart_9 %>% group_by(diabetes) %>% summarize(n=n(), CH = sum(C_H), ratio = CH/n)
+```
+
+```{r}
+coronary_heart_9 %>% group_by(Race) %>% summarize(n=n(), CH = sum(C_H), ratio = CH/n)
+```
+
+
+```{r}
+coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = BPXSY2)) + geom_boxplot(aes(fill = Age_group)) +
+  labs(x = "Coronary heart disease", y = "Systolic blood pressure")
+```
+```{r}
+coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = BPXDI2)) + geom_boxplot(aes(fill = Age_group))+
+  labs(x = "Coronary heart disease", y = "Diastolic blood pressure")
+```
+
+```{r}
+coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = LDL)) + geom_boxplot(aes(fill = Age_group))  +
+  labs(x = "Coronary heart disease", y = "Low-density lipoprotein")
+```
+
+```{r}
+coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = HDL)) + geom_boxplot(aes(fill = Age_group)) +
+  labs(x = "Coronary heart disease", y = "High-density lipoprotein")
+```
+
+```{r}
+coronary_heart_9 %>% ggplot(aes(x = as.factor(C_H), y = Poverty)) + geom_boxplot(aes(fill = Age_group))
+```
+
+```{r}
+ggplot(coronary_heart_9) + geom_bar(aes(x = Race, fill = as.factor(C_H)), position = "fill")
+```
+
+```{r}
+ggplot(coronary_heart_9) + geom_bar(aes(x = Gender, fill = as.factor(C_H)), position = "fill")
+```
+
+```{r}
+ggplot(coronary_heart_9) + geom_bar(aes(x = Age_group, fill = as.factor(C_H)), position = "fill")
+```
+
+```{r}
+ggplot(coronary_heart_9) + geom_bar(aes(x = Age_group, fill = as.factor(C_H)), position = "fill")
+```
+
+```{r}
+coronary_heart_9 %>% group_by(OW) %>% summarize(n = n(), CH = sum(C_H), ratio = CH/n)
+```
+
+# Model fitting
+
+```{r}
+set.seed(415)
+train_idx <- sample(1:nrow(coronary_heart_9), floor(0.7*nrow(coronary_heart_9)))
+train_df <- coronary_heart_9[train_idx, ]
+test_df <- coronary_heart_9[-train_idx, ]
+```
+
+```{r}
+n_predictors <- ncol(coronary_heart_9) - 1
+regfit.full <- regsubsets(as.factor(C_H) ~ .-SEQN-Age_group, data = coronary_heart_9, nvmax = n_predictors)
+reg.summary <- summary(regfit.full)
+#names(reg.summary)
+which.min(reg.summary$bic)
+reg.summary$which[9,]
+```
+
+### QDA
+
+```{r}
+fit_qda = qda(as.factor(C_H) ~ .-SEQN-Triglyceride-HDL-Smoking-Alcohol-OW-BMXWAIST-Glucose-Age_group, 
+              data = train_df)
+fit_qda
+```
+```{r}
+qda_train_pred = predict(fit_qda, train_df)$class
+qda_test_pred = predict(fit_qda, test_df)$class
+qda_test = predict(fit_qda, test_df)$posterior[,2]
+qda_train = predict(fit_qda, train_df)$posterior[,2]
+```
+
+```{r}
+# standard threshold
+train_err = mean(qda_train_pred != train_df$C_H)
+train_err
+test_err = mean(qda_test_pred != test_df$C_H)
+test_err
+c <- table(predicted = qda_test_pred, actual = test_df$C_H)
+c
+```
+
+```{r}
+TPR <- c[2,2]/(c[2,2]+c[1,2])
+TPR
+TNR <- c[1,1]/(c[1,1]+c[2,1])
+TNR
+```
+
+```{r}
+# setting threshold manually
+qda_train_y = ifelse(qda_train > 0.04, 1, 0)
+qda_test_y = ifelse(qda_test > 0.04, 1, 0)
+```
+
+```{r}
+# setting threshold manually
+tr_err = mean(qda_train_y != train_df$C_H)
+tr_err
+te_err = mean(qda_test_y != test_df$C_H)
+te_err
+d <- table(predicted = qda_test_y, actual = test_df$C_H)
+d 
+```
+
+```{r}
+TPR <- d[2,2]/(d[2,2]+d[1,2])
+TPR
+TNR <- d[1,1]/(d[1,1]+d[2,1])
+TNR
+```
+
+### LDA
+
+```{r}
+fit_lda = lda(as.factor(C_H) ~ .-SEQN-Triglyceride-HDL-Smoking-Alcohol-OW-BMXWAIST-Glucose-Age_group, 
+              data = train_df)
+fit_lda
+```
+
+```{r}
+lda_train_pred = predict(fit_lda, train_df)$class
+lda_test_pred = predict(fit_lda, test_df)$class
+
+lda_test = predict(fit_lda, test_df)$posterior[,2]
+lda_train = predict(fit_lda, train_df)$posterior[,2]
+```
+
+```{r}
+# standard threshold
+train_err = mean(lda_train_pred != train_df$C_H)
+train_err
+test_err = mean(lda_test_pred != test_df$C_H)
+test_err
+b <- table(predicted = lda_test_pred, actual = test_df$C_H)
+b 
+```
+
+```{r}
+# standard threshold
+TPR <- b[2,2]/(b[2,2]+b[1,2])
+TPR
+TNR <- b[1,1]/(b[1,1]+b[2,1])
+TNR
+```
+
+```{r}
+# setting threshold manually
+lda_train_y = ifelse(lda_train > 0.04, 1, 0)
+lda_test_y = ifelse(lda_test > 0.04, 1, 0)
+```
+
+```{r}
+# setting threshold manually
+tr_err = mean(lda_train_y != train_df$C_H)
+tr_err
+te_err = mean(lda_test_y != test_df$C_H)
+te_err
+e <- table(predicted = lda_test_y, actual = test_df$C_H)
+e 
+```
+
+```{r}
+TPR <- e[2,2]/(e[2,2]+e[1,2])
+TPR
+TNR <- e[1,1]/(e[1,1]+e[2,1])
+TNR
+```
+
+### Logistic regression
+
+```{r}
+fit1 <- glm(C_H ~ .-SEQN-Triglyceride-HDL-Smoking-Alcohol-OW-BMXWAIST-Glucose-Age_group, 
+            family = binomial, data = train_df)
+summary(fit1)
+```
+
+```{r}
+logit_train_pred <- predict(fit1, train_df, type = "response")
+logit_test_pred <- predict(fit1, test_df, type = "response")
+
+# standard threshold
+logit_train <- ifelse(logit_train_pred > 0.5, 1, 0)
+logit_test <- ifelse(logit_test_pred > 0.5, 1, 0)
+```
+
+```{r}
+# standard threshold
+train_err = mean(logit_train != train_df$C_H)
+train_err
+test_err = mean(logit_test != test_df$C_H)
+test_err
+logit_0.5th = table(predicted = logit_test, actual = test_df$C_H)
+logit_0.5th
+```
+
+```{r}
+TPR <- logit_0.5th[2,2]/(logit_0.5th[2,2]+logit_0.5th[1,2])
+TPR
+TNR <- logit_0.5th[1,1]/(logit_0.5th[1,1]+logit_0.5th[2,1])
+TNR
+```
+
+```{r}
+# setting threshold manually
+logit_train_y <- ifelse(logit_train_pred > 0.04, 1, 0)
+logit_test_y <- ifelse(logit_test_pred > 0.04, 1, 0)
+```
+
+```{r}
+# manually adjusted threshold
+train_err = mean(logit_train_y != train_df$C_H)
+train_err
+test_err = mean(logit_test_y != test_df$C_H)
+test_err
+logit_manual = table(predicted = logit_test_y, actual = test_df$C_H)
+logit_manual
+```
+
+```{r}
+TPR <- logit_manual[2,2]/(logit_manual[2,2]+logit_manual[1,2])
+TPR
+TNR <- logit_manual[1,1]/(logit_manual[1,1]+logit_manual[2,1])
+TNR
+```
+
+### Random forest classification
+
+```{r}
+set.seed(415)
+err_tr = rep(0, 16)
+err_te = rep(0, 16)
+for (i in 1:16) {
+  bag_mod <- randomForest(
+  as.factor(C_H) ~ .-SEQN-Age_group, # Model formula
+  data=train_df, # Training data
+  mtry=i,
+  importance=TRUE) # Return feature importance measures
+
+  rf_pred_tr = predict(bag_mod, train_df)
+  rf_pred_te = predict(bag_mod, test_df)
+
+  err_tr[i] = mean(rf_pred_tr != train_df$C_H)
+  err_te[i] = mean(rf_pred_te != test_df$C_H)
+}
+err_te[which.min(err_te)]
+```
+
+```{r}
+which.min(err_te)
+```
+
+```{r}
+rf_best <- randomForest(
+  as.factor(C_H) ~ .-SEQN-Age_group, # Model formula
+  data=train_df, # Training data
+  mtry=8, # Use 8 columns
+  importance=TRUE) # Return feature importance measures
+
+rf_prob_te = predict(rf_best, test_df, type = "prob")
+```
+
+```{r}
+varImpPlot(rf_best)
+```
+
+```{r}
+# standard threshold
+rf_train_pred <- predict(rf_best, train_df)
+rf_test_pred <- predict(rf_best, test_df)
+
+rf_prob_tr <- predict(rf_best, train_df, type = "prob")[,2]
+rf_prob_te <- predict(rf_best, test_df, type = "prob")[,2]
+```
+
+```{r}
+# standard threshold
+train_err = mean(rf_train_pred  != train_df$C_H)
+train_err
+test_err = mean(rf_test_pred != test_df$C_H)
+test_err
+g = table(predicted = rf_train_pred, actual = train_df$C_H)
+g
+f = table(predicted = rf_test_pred, actual = test_df$C_H)
+f
+```
+
+```{r}
+# standard threshold
+TPR <- f[2,2]/(f[2,2]+f[1,2])
+TPR
+TNR <- f[1,1]/(f[1,1]+f[2,1])
+TNR
+```
+
+```{r}
+# setting threshold manually
+rf_train_y <- ifelse(rf_prob_tr > 0.05, 1, 0)
+rf_test_y <- ifelse(rf_prob_te > 0.04, 1, 0)
+```
+
+```{r}
+# manually adjusted threshold
+train_err = mean(rf_train_y != train_df$C_H)
+train_err
+test_err = mean(rf_test_y != test_df$C_H)
+test_err
+rf_manual = table(predicted = rf_test_y, actual = test_df$C_H)
+rf_manual
+```
+
+```{r}
+TPR <- rf_manual[2,2]/(rf_manual[2,2]+rf_manual[1,2])
+TPR
+TNR <- rf_manual[1,1]/(rf_manual[1,1]+rf_manual[2,1])
+TNR
+```
+
+### ROC plot
+
+```{r}
+pred1 = prediction(logit_test_pred, test_df$C_H)
+pred2 = prediction(qda_test, test_df$C_H)
+pred3 = prediction(lda_test, test_df$C_H)
+pred4 = prediction(rf_prob_te[,2], test_df$C_H)
+roc1 = performance(pred1, "tpr", "fpr")
+roc2 = performance(pred2, "tpr", "fpr")
+roc3 = performance(pred3, "tpr", "fpr")
+roc4 = performance(pred4, "tpr", "fpr")
+plot(roc1, col='red', lwd =2)
+plot(roc2, col='blue', lwd =2, add = TRUE)
+plot(roc3, col='green', lwd =2, add = TRUE)
+plot(roc4, col='purple', lwd =2, add = TRUE)
+legend("bottomright", c("Logistic","QDA", "LDA", "RF"), col = c("red", "blue", "green", "purple"), lwd = 2)
+#lines(roc2)
+abline(0,1)
+```
+
+|  Classification method | Threshold |True Positive Rate | True Negative Rate | 
+|-----|----------|----------|----------|
+| Logistic regression | 0.500 | 0.0571 | 0.997 |
+| LDA |  0.500 | 0.0857 | 0.982 |
+| QDA |  0.500 | 0.400 | 0.932 |
+| Random forest |  0.500 | 0.0286 | 0.998 |
+
+
+| Classification method | Threshold | True Positive Rate | True Negative Rate | 
+|-----|----------|----------|----------|
+| Logistic regression | 0.04 | 0.800 | 0.814 |
+| LDA | 0.04 | 0.800 | 0.814 |
+| QDA | 0.04 | 0.743 | 0.778 |
+| Random forest | 0.04 | 0.743 | 0.753 |
+
+
