@@ -1,0 +1,382 @@
+---
+title: "Regression"
+author: "Ziwei Tian (ZIWEIT)"
+date: "4/16/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(haven)
+library(tidyverse)
+setwd("~/Desktop/Stats 415/Project")
+```
+
+```{r}
+total <- read.csv("Regression.csv")
+# Transform categorical data as factors
+factor_predictors <- c("Race", "Gender", "OW", "Smoking", "Hypertension", "Diabetes")
+factor_predictors_id <- match(factor_predictors, names(total))
+for (i in 1:length(factor_predictors_id)) {
+  predictor_id <- factor_predictors_id[i]
+  total[,predictor_id] <- as.factor(total[,predictor_id])
+  colnames(total)[predictor_id] <- factor_predictors[i]
+}
+```
+
+# EDA
+
+### Strength v.s. Demographic data
+```{r}
+#Strength vs. Race and Gender
+ggplot(total, aes(x=Race, y=Strength)) + geom_boxplot(aes(fill=Gender))
+```
+
+```{r}
+#Transform age into 5 different age groups
+total <- total %>% 
+  mutate(
+    # Create categories
+    age_group = dplyr::case_when(
+      Age <= 14            ~ "0-14",
+      Age > 14 & Age <= 30 ~ "15-30",
+      Age > 30 & Age <= 44 ~ "30-44",
+      Age > 44 & Age <= 60 ~ "45-60",
+      Age > 60 & Age <= 75 ~ "60-75",
+      Age > 75             ~ "> 75",
+    ),
+    # Convert to factor
+    age_group = factor(
+      age_group,
+      level = c("0-14", "15-30","30-44","45-60", "60-75", "> 75")
+    )
+  )
+```
+
+```{r}
+ggplot(data = total, aes(x = age_group, y = Strength)) +
+    geom_boxplot(aes(fill=Gender))
+```
+
+```{r}
+ggplot(data = total, aes(x = Age, y = Strength)) + geom_point(aes(col=Gender)) + geom_smooth(aes(x = Age, y = Strength, col=Gender))
+```
+
+### Strength vs. Body Measurements
+
+```{r}
+male <- total[total$Gender == 1, -4]
+female <- total[total$Gender == 2, -4]
+
+ggplot(data = male, aes(x = Waist, y = Strength)) +
+    geom_smooth(alpha = 0.5, aes(color=age_group))
+ggplot(data = female, aes(x = Waist, y = Strength)) +
+    geom_smooth(alpha = 0.5, aes(color=age_group))
+```
+
+```{r}
+ggplot(data = total, aes(x = Gender, y = Strength)) +
+    geom_boxplot(aes(fill=Diabetes))
+```
+
+```{r}
+ggplot(data = total, aes(x = Systolic_Pressure, y = Strength)) +
+    geom_point(aes(col=Gender)) + geom_smooth(aes(x = Systolic_Pressure, y = Strength, col=Gender))
+```
+
+```{r}
+ggplot(data = total, aes(x = HDL, y = Strength)) +
+    geom_point(aes(col=Gender)) + geom_smooth(aes(x = HDL, y = Strength, col=Gender))
+```
+
+```{r}
+ggplot(data = total, aes(x = Glucose, y = Strength)) + geom_point(aes(col=Gender)) + geom_smooth(aes(x = Glucose, y = Strength, col=Gender))
+```
+
+```{r}
+ggplot(data = total, aes(x = LDL, y = Strength)) + geom_point(aes(col=Gender)) + geom_smooth(aes(x = LDL, y = Strength, col=Gender))
+```
+
+### Strength vs. Diseases
+
+```{r}
+ggplot(data = total, aes(x = Gender, y = Strength)) +
+    geom_boxplot(aes(fill=Hypertension))
+```
+
+```{r}
+ggplot(data = total, aes(x = Gender, y = Strength)) +
+    geom_boxplot(aes(fill=Diabetes))
+```
+
+
+# Model 1: Linear Model
+
+```{r}
+set.seed(415)
+
+# Dividing age into two groups: Old and Young. 
+# This is for fit 2 which is not included in the paper due to its poor performance
+male$age_group <- as.factor(ifelse(male$Age < 65, 0, 1))
+colnames(male)[ncol(male)] <- "Old"
+
+female$age_group <- as.factor(ifelse(female$Age < 65, 0, 1))
+colnames(female)[ncol(female)] <- "Old"
+
+# Train test split
+id_male <- sample(1:nrow(male), 0.8*nrow(male), replace=FALSE)
+train_male <- male[id_male, ]
+test_male <- male[-id_male, ]
+
+id_female <- sample(1:nrow(female), 0.8*nrow(female), replace=FALSE)
+train_female <- female[id_female, ]
+test_female <- female[-id_female, ]
+```
+
+
+```{r}
+# Baseline Linear Model
+fit1_m <- glm(Strength ~ .-Old, data=train_male)
+summary(fit1_m)
+
+fit1_f <- glm(Strength ~ .-Old, data=train_female)
+summary(fit1_f)
+```
+
+```{r}
+# Fit 2: Adding interactions of Age with all other predictors
+fit2_m <- glm(Strength ~ .-Age-Old+ Old:(.-Age-Old), data=train_male)
+summary(fit2_m)
+
+fit2_f <- glm(Strength ~ .-Age-Old+ Old:(.-Age-Old), data=train_female)
+summary(fit2_f)
+```
+
+```{r}
+# Using best subsetting selection method to select significant predictors for male
+library(leaps)
+X_male <- model.matrix(fit1_m)[,-1]
+regfit.full.m <- regsubsets(x=X_male, y=train_male$Strength, nvmax = 16, data=train_male)
+reg.summary.m <- summary(regfit.full.m)
+
+best_id.m <- which.min(reg.summary.m$bic)
+reg.summary.m$which[best_id.m, ]
+```
+```{r}
+# Using best subsetting selection method to select significant predictors for female
+X_female <- model.matrix(fit1_f)[,-1]
+regfit.full.f <- regsubsets(x=X_female, y=train_female$Strength, nvmax = 20, data=train_female)
+reg.summary.f <- summary(regfit.full.f)
+
+best_id.f <- which.min(reg.summary.f$bic)
+reg.summary.f$which[best_id.f, ]
+```
+```{r}
+# Observe the difference in predictors selected for male and female
+coef <- as.data.frame(reg.summary.m$which[best_id.m, ])
+coef <- cbind(coef, reg.summary.f$which[best_id.f, ])
+colnames(coef) <- c("Male_Coefficients", "Female_Coefficients")
+
+rownames(coef[coef$Male_Coefficients != coef$Female_Coefficients, ])
+```
+```{r}
+# Fit the linear model using predictors selected by best subsetting selection method
+fit3_m <- glm(Strength ~ Age + Race + Poverty + Diastolic_Pressure + LDL + Waist + Diabetes, data=train_male)
+summary(fit3_m)
+
+fit3_f <- glm(Strength ~ Age + Race + Poverty + Diastolic_Pressure + Waist, data=train_female)
+summary(fit3_f)
+```
+
+
+### Measurement
+
+```{r}
+library(boot)
+# Fit 1 (baseline)
+
+# Training Error
+mean((predict(fit1_m, train_male) - train_male$Strength)^2)
+mean((predict(fit1_f, train_female) - train_female$Strength)^2)
+
+#Test Error
+mean((predict(fit1_m, test_male) - test_male$Strength)^2)
+mean((predict(fit1_f, test_female) - test_female$Strength)^2)
+
+#Cross-Validation Error
+set.seed(415)
+cv.glm(train_male, fit1_m, K=10)$delta[1]
+cv.glm(train_female, fit1_f, K=10)$delta[1]
+```
+```{r}
+#Fit 2 (with age as interaction terms)
+
+# Training Error
+mean((predict(fit2_m, train_male) - train_male$Strength)^2)
+mean((predict(fit2_f, train_female) - train_female$Strength)^2)
+
+# Test Error
+mean((predict(fit2_m, test_male) - test_male$Strength)^2)
+mean((predict(fit2_f, test_female) - test_female$Strength)^2)
+
+# CV Error
+set.seed(415)
+cv.glm(train_male, fit2_m, K=10)$delta[1]
+cv.glm(train_female, fit2_f, K=10)$delta[1]
+```
+```{r}
+# Fit 3 (model of best subset)
+
+# Training Error
+mean((predict(fit3_m, train_male) - train_male$Strength)^2)
+mean((predict(fit3_f, train_female) - train_female$Strength)^2)
+
+# Test Error
+mean((predict(fit3_m, test_male) - test_male$Strength)^2)
+mean((predict(fit3_f, test_female) - test_female$Strength)^2)
+
+# CV Error
+set.seed(415)
+cv.glm(train_male, fit3_m, K=10)$delta[1]
+cv.glm(train_female, fit3_f, K=10)$delta[1]
+```
+
+```{r}
+# BIC score for all three models
+BIC(fit1_m, fit2_m, fit3_m)
+BIC(fit1_f, fit2_f, fit3_f)
+```
+
+
+# Model 2
+
+```{r}
+# Model 2: GAM
+library(splines)
+
+mod2_m <- glm(Strength ~ ns(Age) + ns(Systolic_Pressure) + ns(Diastolic_Pressure) + Triglyceride + poly(LDL, 2) + HDL +  poly(Glucose, 2) + log(Alcohol+1) + poly(Waist, 2) + Race + Poverty + OW + Smoking + Hypertension + Diabetes, data=train_male)
+
+summary(mod2_m)
+
+
+mod2_f <- glm(Strength ~ ns(Age) + ns(Systolic_Pressure) + ns(Diastolic_Pressure) + Triglyceride + poly(LDL, 2) + HDL +  poly(Glucose, 2) + log(Alcohol+1) + poly(Waist, 2) + Race + Poverty + OW + Smoking + Hypertension + Diabetes, data=train_female)
+
+summary(mod2_f)
+```
+```{r}
+# Training Errors
+mean((predict(mod2_m, train_male) - train_male$Strength)^2)
+mean((predict(mod2_f, train_female) - train_female$Strength)^2)
+
+# Test Errors
+mean((predict(mod2_m, test_male) - test_male$Strength)^2)
+mean((predict(mod2_f, test_female) - test_female$Strength)^2)
+
+# CV Errors
+set.seed(415)
+cv.glm(train_male, mod2_m, K=10)$delta[1]
+cv.glm(train_female, mod2_f, K=10)$delta[1]
+```
+
+```{r}
+# Reducing variance by using ridge for men
+library(glmnet)
+set.seed(415)
+grid <- 10^seq(10, -2, length = 1000)
+x <- model.matrix(mod2_m)[, -1]
+y <- train_male$Strength
+
+ridge_m <- glmnet(x, y, alpha = 0, lambda = grid)
+
+# Using CV to find the best lambda (hyperparameter)
+cv.out <- cv.glmnet(x, y, alpha = 0)
+plot(ridge_m)
+bestlam_m <- cv.out$lambda.min
+
+test_mat_m <- model.matrix(lm(Strength ~ ns(Age) + ns(Systolic_Pressure) + ns(Diastolic_Pressure) + Triglyceride + poly(LDL, 2) + HDL +  poly(Glucose, 2) + log(Alcohol+1) + poly(Waist, 2) + Race + Poverty + OW + Smoking + Hypertension + Diabetes, data=test_male))[, -1]
+
+# Training  Error
+pred_ridge_m_train <- predict(ridge_m, s = bestlam_m, newx = x)
+mean((pred_ridge_m_train  - train_male$Strength)^2)
+
+# Test Error
+pred_ridge_m <- predict(ridge_m, s = bestlam_m, newx = test_mat_m)
+mean((pred_ridge_m - test_male$Strength)^2) # Test MSE
+
+# CV error
+min(cv.out$cvm)
+```
+```{r}
+# Reducing variance by using ridge for men
+set.seed(415)
+grid <- 10^seq(10, -2, length = 1000)
+x <- model.matrix(mod2_f)[, -1]
+y <- train_female$Strength
+
+ridge_f <- glmnet(x, y, alpha = 0, lambda = grid)
+
+cv.out <- cv.glmnet(x, y, alpha = 0)
+plot(ridge_f)
+
+bestlam_f <- cv.out$lambda.min
+test_mat_f <- model.matrix(lm(Strength ~ ns(Age) + ns(Systolic_Pressure) + ns(Diastolic_Pressure) + Triglyceride + poly(LDL, 2) + HDL +  poly(Glucose, 2) + log(Alcohol+1) + poly(Waist, 2) + Race + Poverty + OW + Smoking + Hypertension + Diabetes, data=test_female))[, -1]
+
+# Training  Error
+pred_ridge_f_train <- predict(ridge_f, s = bestlam_f, newx = x)
+mean((pred_ridge_f_train  - train_female$Strength)^2) 
+
+# Test  Error
+pred_ridge_f_test <- predict(ridge_f, s = bestlam_f, newx = test_mat_f)
+mean((pred_ridge_f_test - test_female$Strength)^2) 
+
+# CV error
+min(cv.out$cvm) 
+```
+```{r}
+# BIC scores for GAM
+BIC(mod2_m)
+BIC(mod2_f)
+```
+
+
+
+# Model 3
+
+```{r}
+# Generalized boosted regression model for men
+library(gbm)
+set.seed(415)
+boost_male <- gbm(Strength ~ .-Old, data = train_male, distribution = "gaussian", n.trees = 30, interaction.depth = 4)
+summary(boost_male)
+```
+```{r}
+# Generalized boosted regression model for women
+set.seed(415)
+boost_female <- gbm(Strength ~ .-Old, data = train_female, distribution = "gaussian", n.trees = 30, interaction.depth = 4)
+summary(boost_female)
+```
+
+
+```{r}
+#Training Error
+pred_boost_male <- predict(boost_male, newdata = train_male, n.trees = 30)
+mean((pred_boost_male - train_male$Strength)^2)
+
+pred_boost_female <- predict(boost_female, newdata = train_female, n.trees = 30)
+mean((pred_boost_female - train_female$Strength)^2)
+```
+
+```{r}
+#Test Error
+pred_boost_male <- predict(boost_male, newdata = test_male, n.trees = 30)
+mean((pred_boost_male - test_male$Strength)^2)
+
+pred_boost_female <- predict(boost_female, newdata = test_female, n.trees = 30)
+mean((pred_boost_female - test_female$Strength)^2)
+```
+
+
+
