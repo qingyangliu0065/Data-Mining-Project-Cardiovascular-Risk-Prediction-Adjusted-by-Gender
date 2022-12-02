@@ -1,6 +1,6 @@
 # STATS415-FINAL-PROJECT
 
-Result Replication Instruction: 
+## Result Replication Instruction
 
 All of raw data, processed data and Rmd files for two opended ended questions are saved in our project Github Repo. Please note that the all dependencies for the open-ended questions are in the master branch instead of the main branch.
 
