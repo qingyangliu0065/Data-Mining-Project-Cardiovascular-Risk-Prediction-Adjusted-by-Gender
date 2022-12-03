@@ -1,4 +1,4 @@
-# STATS415-FINAL-PROJECT
+# STATS415-FINAL-PROJECT replication instruction
 
 Under this branch, all codes about the open-ended questions could be found. 
 
