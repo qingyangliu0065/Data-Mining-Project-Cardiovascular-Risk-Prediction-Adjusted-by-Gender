@@ -1,4 +1,4 @@
-# STATS415-FINAL-PROJECT
+# Data Mining course final project: Cardiovascular Risk Prediction Adjusted by Gender
 
 ## Result Replication Instruction
 
